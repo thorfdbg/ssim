@@ -1,0 +1,405 @@
+#******************************************************************************
+#  Copyright (C) 2005-2007 TU Berlin, Felix Oum, Thomas Richter
+#
+#  This software is provided 'as-is', without any express or implied
+#  warranty.  In no event will the authors be held liable for any damages
+#  arising from the use of this software.
+#
+#  Permission is granted to anyone to use this software for any purpose,
+#  including commercial applications, and to alter it and redistribute it
+#  freely, subject to the following restrictions:
+#
+#  1. The origin of this software must not be misrepresented; you must not
+#     claim that you wrote the original software. If you use this software
+#     in a product, an acknowledgment in the product documentation would be
+#     appreciated but is not required.
+#  2. Altered source versions must be plainly marked as such, and must not be
+#     misrepresented as being the original software.
+#  3. This notice may not be removed or altered from any source distribution.
+#
+#	Felix Oum		Thomas Richter
+#				thor@math.tu-berlin.de
+#
+#******************************************************************************
+#
+# Process this file with autoconf to produce a configure script.
+AC_INIT(ssimdiff,1.10,thor@math.tu-berlin.de)
+AC_CONFIG_SRCDIR([global/types.hpp])
+AC_CONFIG_HEADER([config.h])
+AC_PREFIX_DEFAULT([/usr/local])
+#
+# Checks for programs.
+AC_PROG_CXX([g++ icc c++ gpp cxx cc++])
+AC_LANG(C++)
+AC_PROG_CC
+AC_PROG_CC_STDC
+AC_C_BIGENDIAN
+# Set some compiler specific macros, dependent on whether we have a GNU C
+# or a generic compiler
+if test ${ac_compiler_gnu} = yes; then
+   # no-rtti breaks exception handling for 2.95
+   AC_SUBST(WARNING_FLAGS,["-Wall -W -Wunused -Wpointer-arith -pedantic -Wcast-qual -Wwrite-strings -Wno-long-long -Wredundant-decls -Wnon-virtual-dtor -Woverloaded-virtual -Wsign-promo"])
+   AC_SUBST(OPTIMIZER_FLAGS,["-ffast-math -funroll-loops -fstrict-aliasing -Wno-redundant-decls -fexpensive-optimizations -fstrength-reduce -fgcse -fcse-follow-jumps -fcse-skip-blocks -frerun-cse-after-loop -frerun-loop-opt -fforce-addr"])
+   AC_SUBST(PROFILER_FLAGS,["-ggdb3 -pg -fno-omit-frame-pointer -fno-inline"])
+   AC_SUBST(DEBUGGER_FLAGS,["-ggdb3 -fno-inline"])
+fi
+if test ${CXX} = icc; then
+   # Set flags for the icc intel compiler. We could do without it, but it perfor
+ms better with it.
+   AC_SUBST(OPTIMIZER_FLAGS,["-Xa -align -Zp16 -fno-rtti"])
+   AC_SUBST(PROFILIER_FLAGS,["-ip_no_inlining"])
+   AC_SUBST(DEBUGGER_FLAGS,["-g"])
+fi
+#
+#
+# We first check in the C language as autoconf seems to expect that
+# the compiler accepts conflicting prototypes. Wierd.
+AC_LANG(C)
+
+# Check compiler features. We need long long and unsigned long long
+AC_CHECK_TYPES([long long])
+AC_CHECK_TYPES([unsigned long long])
+AC_CHECK_TYPES([__int64])
+if test ${ac_cv_type___int64} = no; then
+ if test ${ac_cv_type_long_long} = no; then
+  AC_MSG_ERROR([your compiler must support a signed 64 bit data type. mssim cannot be build without it.])
+ fi
+ if test ${ac_cv_type_unsigned_long_long} = no; then
+  AC_MSG_ERROR([your compiler must support an unsigned 64 bit data type. mssim cannot be build without it.])
+ fi
+fi
+AC_CHECK_SIZEOF(char)
+AC_CHECK_SIZEOF(short)
+AC_CHECK_SIZEOF(int)
+AC_CHECK_SIZEOF(long)
+#
+#
+#
+AC_HEADER_STDC
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+AC_HEADER_STAT
+AC_CHECK_HEADERS([fcntl.h stdlib.h string.h strings.h unistd.h])
+AC_CHECK_HEADERS([stdlib.h signal.h stdarg.h errno.h stdio.h])
+AC_CHECK_HEADERS([bstring.h bstrings.h])
+AC_CHECK_HEADERS([time.h utime.h sys/time.h unix.h stat.h sys/stat.h])
+AC_CHECK_HEADERS([math.h])
+#
+AC_CHECK_HEADERS([png.h])
+AC_FUNC_ERROR_AT_LINE
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MALLOC
+AC_FUNC_MEMCMP
+AC_TYPE_SIGNAL
+AC_FUNC_STAT
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS([isascii memchr memmove memset select strcasecmp strchr strerror strrchr strtol strtod])
+AC_CHECK_FUNCS([time localtime snprintf vsnprintf getenv])
+AC_CHECK_FUNCS([strtod exit])
+AC_CHECK_FUNCS([frexp ldexp ceil floor])
+#
+# Checks for libraries
+# These tests must go here as otherwise they break the standard header tests for
+# reasons beyond me.
+AC_SEARCH_LIBS([exp],[m])
+AC_SEARCH_LIBS([png_create_write_struct],[png])
+AC_CHECK_FUNCS([exp pow log log10])
+AC_CHECK_FUNCS([png_create_write_struct png_write_chunk png_create_info_struct])
+#
+# C++ specific tests follow
+AC_LANG(C++)
+#
+# Check for the __null GNU provides. We try to use it if possible.
+#
+AC_MSG_CHECKING([for the __null keyword])
+AC_TRY_COMPILE([],[int *n = __null;],[ac_has_null='yes';AC_DEFINE(HAS__NULL_TYPE,[1],[Define to 1 if the __null keyword is available])],[ac_has_null='no'])
+AC_MSG_RESULT($ac_has_null)
+#
+# Check whether private subclasses have access to private members.
+# According to the C++ standard, they should, but for some compilers,
+# they don't. This is a bug in g++ 2.95.4 and before, got fixed in 3.2
+AC_MSG_CHECKING([whether private subclasses have access to private members])
+AC_TRY_COMPILE([],[
+class A {
+ int a;
+ class B {
+  B(class A *a)
+  {a->a = 0;}
+ };
+};
+],[ac_private_access='yes';AC_DEFINE(HAS_PRIVATE_ACCESS,[1],[Define to 1 if subclasses have access to private members])],
+[ac_private_access='no'])
+AC_MSG_RESULT($ac_private_access)
+#
+#
+# Check whether templated subclasses used in subclasses require explicitly 
+# the name space of the parent class to work. This should not happen, 
+# but gcc 2.95 has a bug here.
+AC_MSG_CHECKING([whether templates are in local namespace])
+AC_TRY_RUN([
+class A {
+ template<int a>
+ class B {
+ int b;
+ B() : b(a) {}
+ };
+ class C {
+ B<0> b;
+ };
+};
+int main(int,char **){return 0;}
+],[ac_local_templates='yes';AC_DEFINE(HAS_LOCAL_TEMPLATES,[1],[Define to 1 if templated subclasses are correctly in the namespace of the parent class])],
+[ac_local_templates='no'])
+AC_MSG_RESULT($ac_local_templates)
+#
+#
+# Check whether static const integral initializers work
+# Some compilers don't support them properly, but gcc does.
+AC_MSG_CHECKING([whether initializers of static const integral members work])
+AC_TRY_RUN([
+class A {
+ static const int a=0;
+};
+int main(int,char**){return 0;}
+],[ac_member_init='yes';AC_DEFINE(HAS_MEMBER_INIT,[1],[Define to 1 if initializers of static const integral members work])],
+[ac_member_init='no'])
+AC_MSG_RESULT($ac_member_init)
+#
+#
+# Check whether casting works in template arguments. 
+# This doesn't seem to apply for all compiles, so be a bit careful.
+AC_MSG_CHECKING([whether casting works in template arguments])
+AC_TRY_RUN([
+typedef unsigned char UC;
+template<UC a>
+struct A {
+ int b;
+ A() : b(a) {}
+};
+int main(int,char **)
+{
+A<UC(~1)> a;
+return 0;
+}
+],[ac_template_casts='yes';AC_DEFINE(HAS_TEMPLATE_CASTS,[1],[Define to 1 if cast
+ing in template arguments work])],
+[ac_template_casts='no'])
+AC_MSG_RESULT($ac_template_casts)
+#
+#
+#
+# Check for working const_cast: I'm not aware of a compiler
+# that breaks this, but better keep care.
+AC_MSG_CHECKING([for working const_cast<> capability])
+AC_TRY_COMPILE([],[const char *a = 0;delete const_cast<char *>(a);],[ac_const_cast='yes';AC_DEFINE(HAS_CONST_CAST,[1],[Define to 1 if const_cast<> works])],[ac_const_cast='no'])
+AC_MSG_RESULT($ac_const_cast)
+#
+# Check for a suitable libpthread and the required compiler flags to make it working.
+# Adapted from the autoconf code by Steven G. Johnson and Alejandro Forero Cuervo
+# All this requires C linkage, so switch over for the next test.
+AC_LANG(C)
+cx_pthread_ok=no
+# We used to check for pthread.h first, but this fails if pthread.h
+# requires special compiler flags (e.g. on True64 or Sequent).
+# It gets checked for in the link test anyway.
+# First of all, check if the user has set any of the PTHREAD_LIBS,
+# etcetera environment variables, and if threads linking works using
+# them:
+if test "$PTHREAD_LIBS$PTHREAD_CFLAGS" != ""; then
+   save_CFLAGS="$CFLAGS"
+   CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+   save_LIBS="$LIBS"
+   LIBS="$PTHREAD_LIBS $LIBS"
+   AC_MSG_CHECKING([for pthread_join in LIBS=$PTHREAD_LIBS with CFLAGS=$PTHREAD_CFLAGS])
+   AC_TRY_LINK_FUNC(pthread_join, acx_pthread_ok=yes)
+   AC_MSG_RESULT($acx_pthread_ok)
+   if test "$acx_pthread_ok" = "no"; then
+      PTHREAD_LIBS=""
+      PTHREAD_CFLAGS=""
+   fi
+   LIBS="$save_LIBS"
+   CFLAGS="$save_CFLAGS"
+fi
+# We must check for the threads library under a number of different
+# names; the ordering is very important because some systems
+# (e.g. DEC) have both -lpthread and -lpthreads, where one of the
+# libraries is broken (non-POSIX).
+
+# Create a list of thread flags to try.  Items starting with a "-" are
+# C compiler flags, and other items are library names, except for "none"
+# which indicates that we try without any flags at all.
+
+acx_pthread_flags="pthreads none -Kthread -kthread lthread -pthread -pthreads -mthreads pthread --thread-safe -mt"
+
+# The ordering *is* (sometimes) important.  Some notes on the
+# individual items follow:
+
+# pthreads: AIX (must check this before -lpthread)
+# none: in case threads are in libc; should be tried before -Kthread and
+#       other compiler flags to prevent continual compiler warnings
+# -Kthread: Sequent (threads in libc, but -Kthread needed for pthread.h)
+# -kthread: FreeBSD kernel threads (preferred to -pthread since SMP-able)
+# lthread: LinuxThreads port on FreeBSD (also preferred to -pthread)
+# -pthread: Linux/gcc (kernel threads), BSD/gcc (userland threads)
+# -pthreads: Solaris/gcc
+# -mthreads: Mingw32/gcc, Lynx/gcc
+# -mt: Sun Workshop C (may only link SunOS threads [-lthread], but it
+#      doesn't hurt to check since this sometimes defines pthreads too;
+#      also defines -D_REENTRANT)
+# pthread: Linux, etcetera
+# --thread-safe: KAI C++
+case "${host_cpu}-${host_os}" in
+     *solaris*)
+     # On Solaris (at least, for some versions), libc contains stubbed
+     # (non-functional) versions of the pthreads routines, so link-based
+     # tests will erroneously succeed.	(We need to link with -pthread or
+     # -lpthread.)  (The stubs are missing pthread_cleanup_push, or rather
+     # a function called by this macro, so we could check for that, but
+     # who knows whether they'll stub that too in a future libc.)  So,
+     # we'll just look for -pthreads and -lpthread first:
+     acx_pthread_flags="-pthread -pthreads pthread -mt $acx_pthread_flags"
+     ;;
+esac
+
+if test "$acx_pthread_ok" = ""; then
+for flag in $acx_pthread_flags; do
+    case $flag in
+	 none)
+		AC_MSG_CHECKING([whether pthreads work without any flags])
+		;;
+
+		-*)
+		AC_MSG_CHECKING([whether pthreads work with $flag])
+		PTHREAD_CFLAGS="$flag"
+		;;
+
+		*)
+		AC_MSG_CHECKING([for the pthreads library -l$flag])
+		PTHREAD_LIBS="-l$flag"
+		;;
+	esac
+
+	save_LIBS="$LIBS"
+	save_CFLAGS="$CFLAGS"
+	LIBS="$PTHREAD_LIBS $LIBS"
+	CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+
+	# Check for various functions.	We must include pthread.h,
+	# since some functions may be macros.  (On the Sequent, we
+	# need a special flag -Kthread to make this header compile.)
+	# We check for pthread_join because it is in -lpthread on IRIX
+	# while pthread_create is in libc.  We check for pthread_attr_init
+	# due to DEC craziness with -lpthreads.	 We check for
+	# pthread_cleanup_push because it is one of the few pthread
+	# functions on Solaris that doesn't have a non-functional libc stub.
+	# We try pthread_create on general principles.
+	AC_TRY_LINK([#include <pthread.h>],
+		    [pthread_t th; pthread_join(th, 0);
+		     pthread_attr_init(0); pthread_cleanup_push(0, 0);
+		     pthread_create(0,0,0,0); pthread_cleanup_pop(0); ],
+		    [acx_pthread_ok=yes])
+
+	LIBS="$save_LIBS"
+	CFLAGS="$save_CFLAGS"
+
+	AC_MSG_RESULT($acx_pthread_ok)
+	if test "$acx_pthread_ok" = "yes"; then
+		break;
+	fi
+
+	PTHREAD_LIBS=""
+	PTHREAD_CFLAGS=""
+done
+fi
+#
+# Various other checks:
+if test "$acx_pthread_ok" = "yes"; then
+        save_LIBS="$LIBS"
+        LIBS="$PTHREAD_LIBS $LIBS"
+        save_CFLAGS="$CFLAGS"
+        CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+
+        # Detect AIX lossage: threads are created detached by default
+        # and the JOINABLE attribute has a nonstandard name (UNDETACHED).
+        AC_MSG_CHECKING([for joinable pthread attribute])
+        AC_TRY_LINK([#include <pthread.h>],
+                    [int attr=PTHREAD_CREATE_JOINABLE;],
+                    ok=PTHREAD_CREATE_JOINABLE, ok=unknown)
+        if test "$ok" = "unknown"; then
+                AC_TRY_LINK([#include <pthread.h>],
+                            [int attr=PTHREAD_CREATE_UNDETACHED;],
+                            ok=PTHREAD_CREATE_UNDETACHED, ok=unknown)
+        fi
+        if test "$ok" != "PTHREAD_CREATE_JOINABLE"; then
+                AC_DEFINE(PTHREAD_CREATE_JOINABLE, $ok,
+                          [Define to the necessary symbol if this constant
+                           uses a non-standard name on your system.])
+        fi
+        AC_MSG_RESULT(${ok})
+        if test "$ok" = "unknown"; then
+                AC_MSG_WARN([we do not know how to create joinable pthreads])
+        fi
+	#
+	# Detect whether we can create pthreads in detached state
+        AC_MSG_CHECKING([for detached pthread attribute])
+        AC_TRY_LINK([#include <pthread.h>],
+                    [int attr=PTHREAD_CREATE_DETACHED;],
+                    ok=PTHREAD_CREATE_DETACHED, ok=unknown)
+	if test "$ok" = "PTHREAD_CREATE_DETACHED"; then
+	   AC_DEFINE(HAVE_PTHREAD_CREATE_DETACHED,1,[Define to 1 if PTHREAD_CREATE_DETACHED is available])
+	fi						   
+	AC_MSG_RESULT(${ok})
+
+        AC_MSG_CHECKING([if more special flags are required for pthreads])
+        flag=no
+        case "${host_cpu}-${host_os}" in
+                *-aix* | *-freebsd*)     flag="-D_THREAD_SAFE";;
+                *solaris* | *-osf* | *-hpux*) flag="-D_REENTRANT";;
+        esac
+        AC_MSG_RESULT(${flag})
+        if test "$flag" != "no"; then
+                PTHREAD_CFLAGS="$flag $PTHREAD_CFLAGS"
+        fi
+
+        LIBS="$save_LIBS"
+        CFLAGS="$save_CFLAGS"
+
+        # More AIX lossage: must compile with cc_r
+        AC_CHECK_PROG(PTHREAD_CC, cc_r, cc_r, ${CC})
+else
+        PTHREAD_CC="$CC"
+fi
+#
+# Bummer! We cannot really use the CC command here since this is C++ code.
+# Keep this set for future extensions/workarounds.
+AC_SUBST(PTHREAD_CC)
+#
+if test "$acx_pthread_ok" = "yes"; then
+   # Check for semaphore operations
+   CFLAGS="$PTHREAD_CFLAGS"
+   CC=$PTHREAD_CC
+   AC_DEFINE(HAVE_PTHREAD,1,[Define if you have POSIX threads libraries and header files.])
+   AC_DEFINE(USE_MULTITHREADING,1,[Define if you want to use multithreading.])
+   AC_SEARCH_LIBS([pthread_create],[$PTHREAD_LIBS])
+   # Solaris has sem_init in a separate library
+   save_LIBS="$LIBS"
+   LIBS=""
+   AC_SEARCH_LIBS([sem_init],[rt],[],[],[$save_LIBS])
+   PTHREAD_LIBS="$PTHREAD_LIBS $LIBS"
+   AC_CHECK_HEADERS([pthread.h semaphore.h])
+   AC_CHECK_FUNCS([pthread_mutex_init pthread_create pthread_detach pthread_mutexattr_init sem_init])
+   AC_CHECK_FUNCS([pthread_self pthread_equal])
+   LIBS="$save_LIBS"
+else   
+   AC_MSG_ERROR(["pthreads not available, make sure that libpthread is in the LD_LIBRARY_PATH"])
+   acx_pthread_ok=no
+fi
+AC_SUBST(PTHREAD_LIBS)
+AC_SUBST(PTHREAD_CFLAGS)
+#
+#
+AC_CONFIG_FILES([makefile])
+AC_OUTPUT
