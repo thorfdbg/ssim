@@ -23,7 +23,7 @@
  ************************************************************************************/
 
 /*
-** $Id: main.cpp,v 1.18 2017/04/13 14:45:56 thor Exp $
+** $Id: main.cpp,v 1.19 2017/04/13 15:26:22 thor Exp $
 **
 */
 
@@ -147,7 +147,7 @@ void Settings::Usage(const char *progname)
 #endif
 	 "\t[-bl]  \t: print SSIM separately for each level\n"
 	 //"\t[-vif] \t: use VIF instead of SSIM\n"
-	 "\t[-msk file] \t: create an image showing the noise mask\n"
+	 //"\t[-msk file] \t: create an image showing the noise mask\n"
 	 "\t[-exp val ] \t: use masking exponent \"val\", default is 2.0\n"
 	 "\t[-err file] \t: create an image showing the error distribution\n"
 	 "\t[-lin]      \t: compute the (m)ssim as linear value, not in dB as by default\n"

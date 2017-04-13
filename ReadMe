@@ -1,0 +1,73 @@
+This source computes the PSNR and the SSIM index, a quality index
+defined by Wang, Bovik, Sheihk and Simoncelli that uses a top-down
+approach to image quality assessment, based on the following
+article of the above authors:
+
+Image Quality Assessment: From Error Measuement to Structural
+Similarity, IEEE Transactions on Image Processing, Vol. 13, 2004.
+
+The code was written by Felix Oum and Thomas Richter, and is based
+on the IMCO framework, developed by Thomas Richter for the
+image compression project of the TU Berlin. For legal restrictions,
+and the licence conditions, please check README.Legal.
+
+Thomas Richter,
+	January 2007
+
+
+-----------------------------------------------------------------------
+
+Usage: ssimdiff
+        [-CC #] : set the number of CPUs to use in parallel
+        [-bl]   : print SSIM separately for each level
+        [-exp val ]     : use masking exponent "val", default is 2.0
+        [-err file]     : create an image showing the error distribution
+        [-lin]          : compute the (m)ssim as linear value, not in dB as by default
+        [-nowav]        : compute a single scale ssim instead of multiscale mssim
+        infile1:         the original file name.
+        infile2:         the distorted file name.
+ssimdiff currently understands .ppm and .pgm files.
+
+If called without additional arguments, the source computes the multiscale
+SSIM between the input and the output image, and prints the result in dB.
+The relation between the "linear" ssim and the logarithmic output in generated
+by this tool is
+
+output = -10 log_10 (1 - ssim)
+
+If you think about this for a while, this brings ssim approximately on the
+same scale as PSNR.
+
+-CC  	   :	   This option enables multithreading, and speeds up the computation.
+     	   	   Due to differences in the final pooling, the output might be slightly
+		   different from the single-threaded version.
+
+-bl  	   :	   Print the multi-scale ssim for each level separately
+
+-exp val   :	   Defines an alternative masking exponent for the ssim. By default,
+     	   	   this value is 2.0 corresponding to the SSIM as described by Wang,
+		   Bovik and Sheihk.
+
+-err file  :	   Generates an error visibility map as predicted by SSIM.
+     	   	   This file may require massive contrast or luminance adjustments
+		   to generate visible differences on the screen.
+
+-lin	   :	   Output the linear SSIM as described by Wang, Bovik & Sheihk as
+	   	   opposed to the dB value.
+
+-nowav	   :	   Compute the single-scale SSIM instead of the multi-scale SSIM.
+	   	   By default, a 13/7 filter is used to generate the scales of the
+		   multi-scale SSIM. If this option is set, no filtering is performed
+		   and the single-scale SSIM is used instead.
+
+If the images are RGB color images, sRGB input is assumed. Note that Wang, Bovik and
+Sheihk do not define a color SSIM. In this version, any color input data is first
+transformed to YCbCr, and then SSIM is computed independently for each component,
+then pooled with weights of 95%, 2% and 3%, respectively. Hence, chroma differences
+are mainly ignored. Note that the frequency weights (aka exponents) are independent
+of the color channel, which is certainly not correct.
+
+Note that SSIM is not fully specified, thus this implementation may generate results that
+are different from the matlab code provided by the original authors. Pooling, filtering
+and windowing may be slightly different, giving numerically different results.
+
